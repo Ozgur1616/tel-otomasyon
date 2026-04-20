@@ -2,26 +2,27 @@ import streamlit as st
 from datetime import datetime
 import pandas as pd
 import smtplib
+import random # Sipariş numarası için gerekli
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-# ------------------ MAİL AYARLARI (BURAYI DOLDUR) ------------------
-# Gmail hesabından aldığın 16 haneli uygulama şifresini 'SIFRE' kısmına yaz.
-# Gonderen ve Alici mail adreslerini kendi mailinle değiştir.
+# ------------------ MAİL AYARLARI ------------------
 GONDEREN_MAIL = "oefe02081@gmail.com"
 ALICI_MAIL = "oefe02090@gmail.com"
-SIFRE = "fvgefgxjuzasxlxl" # Buraya o 16 haneli uygulama şifresini yapıştır!
+SIFRE = "fmlftvqhyqyrkkhw" 
 
 def mail_gonder(siparis_detay):
     try:
         mesaj = MIMEMultipart()
         mesaj["From"] = GONDEREN_MAIL
         mesaj["To"] = ALICI_MAIL
-        mesaj["Subject"] = f"YENİ SİPARİŞ: {siparis_detay['Müşteri']}"
+        # Mail başlığına sipariş numarasını ekledik
+        mesaj["Subject"] = f"YENİ SİPARİŞ #{siparis_detay['Sipariş No']} - {siparis_detay['Müşteri']}"
 
         icerik = f"""
-        Yeni bir tel montaj siparişi alındı!
+        YENİ SİPARİŞ BİLGİLERİ
         ----------------------------------
+        Sipariş No: #{siparis_detay['Sipariş No']}
         Müşteri: {siparis_detay['Müşteri']}
         Telefon: {siparis_detay['Telefon']}
         Metraj: {siparis_detay['Metraj']}
@@ -44,11 +45,9 @@ def mail_gonder(siparis_detay):
 # ------------------ SAYFA AYARLARI ------------------
 st.set_page_config(page_title="Tel Montaj Otomasyonu", layout="wide")
 
-# Sabit Fiyatlar
 MONTAJ_SABIT = 100
 METRE_FIYATI = 70
 
-# Veri Saklama (Session State)
 if 'siparisler' not in st.session_state:
     st.session_state.siparisler = []
 
@@ -60,13 +59,9 @@ col1, col2 = st.columns([1, 1.5])
 with col1:
     st.subheader("📋 Müşteri ve İş Bilgisi")
     musteri = st.text_input("Müşteri Adı/Soyadı", placeholder="Örn: Ahmet Yılmaz")
-    
-    # MÜŞTERİ TELEFON GİRİŞİ
     telefon = st.text_input("Telefon Numaranız", placeholder="05xx xxx xx xx")
-    
     metre = st.number_input("Kaç Metre Tel Döşenecek?", min_value=0.0, step=1.0)
     
-    # Hesaplama Mantığı
     malzeme_tutari = metre * METRE_FIYATI
     toplam_tutar = MONTAJ_SABIT + malzeme_tutari
     
@@ -80,9 +75,12 @@ with col2:
     notlar = st.text_area("Ek Notlar", placeholder="Örn: Bahçe kapısı yanından başlanacak...")
     
     if st.button("SİPARİŞİ KAYDET VE ONAYLA", type="primary", use_container_width=True):
-        # Müşteri, Telefon ve Metre bilgilerinin boş olmadığını kontrol ediyoruz
         if musteri and telefon and metre > 0:
+            # BENZERSİZ SİPARİŞ NUMARASI OLUŞTURMA (Örn: 45821)
+            siparis_no = random.randint(10000, 99999)
+            
             yeni_siparis = {
+                "Sipariş No": siparis_no,
                 "Müşteri": musteri,
                 "Telefon": telefon,
                 "Metraj": f"{metre} m",
@@ -98,9 +96,13 @@ with col2:
             st.session_state.siparisler.append(yeni_siparis)
             
             if mail_durumu:
-                st.success(f"Başarılı! {musteri} adına sipariş kaydedildi ve mail gönderildi.")
+                # Müşteriye hem başarı mesajı hem de numarasını gösteriyoruz
+                st.success(f"Siparişiniz başarıyla alındı!")
+                st.balloons() # Tebrik efekti
+                st.info(f"🆔 **Sipariş Numaranız: #{siparis_no}**")
+                st.write("Lütfen bu numarayı not alınız. Sipariş detayları ustaya iletildi.")
             else:
-                st.warning("Sipariş kaydedildi fakat mail iletilemedi (Şifreyi kontrol edin).")
+                st.warning(f"Sipariş No: #{siparis_no} olarak kaydedildi ancak mail gönderilirken bir hata oluştu.")
         else:
             st.error("Lütfen tüm alanları (Ad, Telefon, Metre) eksiksiz doldurun.")
 
