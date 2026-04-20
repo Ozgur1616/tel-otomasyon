@@ -1,15 +1,49 @@
 import streamlit as st
 from datetime import datetime
 import pandas as pd
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+# ------------------ MAİL AYARLARI (BURAYI DOLDUR) ------------------
+# Gmail hesabından aldığın 16 haneli uygulama şifresini 'SIFRE' kısmına yaz.
+GONDEREN_MAIL = "seninmailin@gmail.com"
+ALICI_MAIL = "siparisin_gidecegi_mail@gmail.com"
+SIFRE = "xxxx xxxx xxxx xxxx" 
+
+def mail_gonder(siparis_detay):
+    try:
+        mesaj = MIMEMultipart()
+        mesaj["From"] = GONDEREN_MAIL
+        mesaj["To"] = ALICI_MAIL
+        mesaj["Subject"] = f"YENİ SİPARİŞ: {siparis_detay['Müşteri']}"
+
+        icerik = f"""
+        Yeni bir tel montaj siparişi alındı:
+        
+        Müşteri: {siparis_detay['Müşteri']}
+        Metraj: {siparis_detay['Metraj']}
+        Toplam Tutar: {siparis_detay['Toplam Tutar']}
+        Tarih: {siparis_detay['Tarih']}
+        Notlar: {siparis_detay['Notlar']}
+        """
+        mesaj.attach(MIMEText(icerik, "plain"))
+
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server.starttls()
+        server.login(GONDEREN_MAIL, SIFRE)
+        server.sendmail(GONDEREN_MAIL, ALICI_MAIL, mesaj.as_string())
+        server.quit()
+        return True
+    except Exception as e:
+        return False
 
 # ------------------ SAYFA AYARLARI ------------------
 st.set_page_config(page_title="Tel Montaj Otomasyonu", layout="wide")
 
-# Sabit Fiyatlar
 MONTAJ_SABIT = 100
 METRE_FIYATI = 70
 
-# Veri Saklama
 if 'siparisler' not in st.session_state:
     st.session_state.siparisler = []
 
@@ -23,7 +57,6 @@ with col1:
     musteri = st.text_input("Müşteri Adı/Soyadı", placeholder="Örn: Ahmet Yılmaz")
     metre = st.number_input("Kaç Metre Tel Döşenecek?", min_value=0.0, step=1.0)
     
-    # Hesaplama Mantığı
     malzeme_tutari = metre * METRE_FIYATI
     toplam_tutar = MONTAJ_SABIT + malzeme_tutari
     
@@ -45,8 +78,17 @@ with col2:
                 "Tarih": datetime.now().strftime('%d.%m.%Y %H:%M'),
                 "Notlar": notlar
             }
+            
+            # Önce Mail Gönder
+            mail_durumu = mail_gonder(yeni_siparis)
+            
+            # Sonra Listeye Ekle
             st.session_state.siparisler.append(yeni_siparis)
-            st.success(f"{musteri} için sipariş başarıyla kaydedildi!")
+            
+            if mail_durumu:
+                st.success(f"{musteri} için sipariş kaydedildi ve mail gönderildi!")
+            else:
+                st.warning(f"Sipariş kaydedildi fakat mail gönderilemedi (Şifreyi kontrol edin).")
         else:
             st.error("Lütfen müşteri adını ve metre bilgisini girin.")
 
