@@ -7,8 +7,8 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 # ------------------ MAİL AYARLARI ------------------
-GONDEREN_MAIL = "oefe02090@gmail.com"
-ALICI_MAIL = "oefe02081@gmail.com"
+GONDEREN_MAIL = "oefe02081@gmail.com"
+ALICI_MAIL = "oefe02090@gmail.com"
 SIFRE = "fmlftvqhyqyrkkhw"
 
 def mail_gonder(siparis_detay):
