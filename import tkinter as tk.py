@@ -3,6 +3,7 @@ from datetime import datetime
 import pandas as pd
 import smtplib
 import random
+import requests # İl/İlçe verisini internetten çekmek için
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -10,6 +11,21 @@ from email.mime.multipart import MIMEMultipart
 GONDEREN_MAIL = "oefe02081@gmail.com"
 ALICI_MAIL = "oefe02090@gmail.com"
 SIFRE = "fmlftvqhyqyrkkhw" 
+
+# ------------------ TÜRKİYE TÜM İL & İLÇE VERİSİ ------------------
+@st.cache_data # Veriyi her seferinde internetten çekmemesi için hafızaya alır
+def illeri_getir():
+    # Güvenilir bir kaynaktan Türkiye il-ilçe verisini çekiyoruz
+    url = "https://raw.githubusercontent.com/fethisarihan/turkiye-iller-ilceler/master/iller-ilceler.json"
+    try:
+        response = requests.get(url)
+        return response.json()
+    except:
+        # İnternet hatası olursa diye yedek basit liste
+        return {"Bursa": ["Nilüfer", "Osmangazi"], "İstanbul": ["Beşiktaş", "Kadıköy"]}
+
+data = illeri_getir()
+iller = sorted([il["il"] for il in data])
 
 def mail_gonder(siparis_detay):
     try:
@@ -24,7 +40,12 @@ def mail_gonder(siparis_detay):
         Sipariş No: #{siparis_detay['Sipariş No']}
         Müşteri: {siparis_detay['Müşteri']}
         Telefon: {siparis_detay['Telefon']}
-        Montaj Durumu: {siparis_detay['Montaj Durumu']}
+        
+        ADRES: {siparis_detay['Açık Adres']}
+        KONUM: {siparis_detay['İlçe']} / {siparis_detay['İl']}
+        
+        DETAYLAR:
+        Montaj Durumu: {siparis_detay['Montaj']}
         Metraj: {siparis_detay['Metraj']}
         Toplam Tutar: {siparis_detay['Toplam Tutar']}
         Tarih: {siparis_detay['Tarih']}
@@ -42,70 +63,69 @@ def mail_gonder(siparis_detay):
         return False
 
 # ------------------ SAYFA AYARLARI ------------------
-st.set_page_config(page_title="Tel Otomasyon", layout="wide", page_icon="🛡️")
+st.set_page_config(page_title="Tel Otomasyon - Türkiye", layout="wide")
 
-# BİRİM FİYATLAR
 METRE_FIYATI = 70
-MONTAJ_METRE_FIYATI = 100 # Montaj bedeli artık metre başına 100 TL
+MONTAJ_METRE_FIYATI = 100
 
 if 'siparisler' not in st.session_state:
     st.session_state.siparisler = []
 
-st.title("🛡️ Tel Montaj Sipariş & Hesaplama Sistemi")
+st.title("🛡️ Tüm Türkiye Tel Montaj Otomasyonu")
 
 col1, col2 = st.columns([1, 1.5])
 
 with col1:
-    st.subheader("📋 Müşteri ve İş Bilgisi")
-    musteri = st.text_input("Müşteri Adı/Soyadı", placeholder="Özgür ...")
-    telefon = st.text_input("Telefon Numaranız", placeholder="05xx...")
-    metre = st.number_input("Kaç Metre Tel?", min_value=0.0, step=1.0)
+    st.subheader("👤 Müşteri Bilgileri")
+    musteri = st.text_input("Müşteri Adı/Soyadı")
+    telefon = st.text_input("Telefon Numarası")
     
-    montaj_istiyor_mu = st.radio("Montaj hizmeti istiyor musunuz? (Metresi 100 TL)", ("Evet", "Hayır"))
+    st.subheader("📍 Adres Bilgileri")
+    secilen_il = st.selectbox("İl Seçiniz", options=iller)
     
-    # HESAPLAMA MANTIĞI
-    malzeme_tutari = metre * METRE_FIYATI
-    # Eğer montaj istenirse: metre x 100 TL, istenmezse 0 TL
-    toplam_montaj_bedeli = (metre * MONTAJ_METRE_FIYATI) if montaj_istiyor_mu == "Evet" else 0
-    toplam_tutar = malzeme_tutari + toplam_montaj_bedeli
-    
-    st.divider()
-    st.write(f"🏗️ Malzeme Tutarı ({metre}m x {METRE_FIYATI}TL): **{malzeme_tutari} TL**")
-    st.write(f"🛠️ Toplam Montaj Bedeli: **{toplam_montaj_bedeli} TL**")
-    st.subheader(f"💰 GENEL TOPLAM: {toplam_tutar} TL")
+    # Seçilen ile göre ilçeleri filtreleme
+    ilceler = []
+    for il in data:
+        if il["il"] == secilen_il:
+            ilceler = sorted(il["ilceleri"])
+            break
+            
+    secilen_ilce = st.selectbox("İlçe Seçiniz", options=ilceler)
+    acik_adres = st.text_area("Cadde, Sokak, Kapı No", placeholder="Örn: Hürriyet Mah. Meşe Sk. No:12")
 
 with col2:
-    st.subheader("📤 Sipariş Kaydı")
-    notlar = st.text_area("Ek Notlar (Adres vb.)")
+    st.subheader("📏 Fiyatlandırma")
+    metre = st.number_input("Kaç Metre Tel?", min_value=0.0, step=1.0)
+    montaj_istiyor_mu = st.radio("Montaj hizmeti istiyor musunuz? (Metresi 100 TL)", ("Evet", "Hayır"))
     
-    if st.button("SİPARİŞİ KAYDET VE ONAYLA", type="primary", use_container_width=True):
-        if musteri and telefon and metre > 0:
-            siparis_no = random.randint(10000, 99999)
-            yeni_siparis = {
-                "Sipariş No": siparis_no,
-                "Müşteri": musteri,
-                "Telefon": telefon,
-                "Montaj": montaj_istiyor_mu,
-                "Metraj": f"{metre} m",
-                "Toplam Tutar": f"{toplam_tutar} TL",
-                "Tarih": datetime.now().strftime('%d.%m.%Y %H:%M'),
+    malzeme_tutari = metre * METRE_FIYATI
+    montaj_tutari = (metre * MONTAJ_METRE_FIYATI) if montaj_istiyor_mu == "Evet" else 0
+    toplam = malzeme_tutari + montaj_tutari
+    
+    st.info(f"💰 **Toplam Tutar: {toplam} TL**")
+    notlar = st.text_area("Sipariş Notu")
+    
+    if st.button("SİPARİŞİ TAMAMLA", type="primary", use_container_width=True):
+        if musteri and telefon and metre > 0 and acik_adres:
+            s_no = random.randint(10000, 99999)
+            yeni = {
+                "Sipariş No": s_no, "Müşteri": musteri, "Telefon": telefon,
+                "İl": secilen_il, "İlçe": secilen_ilce, "Açık Adres": acik_adres,
+                "Montaj": montaj_istiyor_mu, "Metraj": f"{metre} m",
+                "Toplam Tutar": f"{toplam} TL", "Tarih": datetime.now().strftime('%d.%m.%Y %H:%M'),
                 "Notlar": notlar
             }
-            
-            durum = mail_gonder(yeni_siparis)
-            st.session_state.siparisler.append(yeni_siparis)
-            
+            durum = mail_gonder(yeni)
+            st.session_state.siparisler.append(yeni)
             if durum:
-                st.success(f"Başarılı! Sipariş No: #{siparis_no}")
+                st.success(f"Sipariş Alındı! No: #{s_no}")
                 st.balloons()
             else:
-                st.warning(f"Kaydedildi (#{siparis_no}) ama mail gitmedi. Gmail uygulama şifresini kontrol edin.")
+                st.warning("Kayıt yapıldı ama mail şifren hatalı olduğu için iletilemedi.")
         else:
-            st.error("Lütfen Ad, Telefon ve Metre alanlarını doldurun.")
+            st.error("Lütfen eksik alan bırakmayın!")
 
-# ------------------ SİPARİŞ GEÇMİŞİ ------------------
 st.divider()
-st.subheader("📑 Alınan Siparişler Listesi")
 if st.session_state.siparisler:
-    df = pd.DataFrame(st.session_state.siparisler)
-    st.table(df)
+    st.subheader("📑 Alınan Siparişler")
+    st.dataframe(pd.DataFrame(st.session_state.siparisler))
