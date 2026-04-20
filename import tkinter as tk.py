@@ -7,9 +7,9 @@ from email.mime.multipart import MIMEMultipart
 
 # ------------------ MAİL AYARLARI (BURAYI DOLDUR) ------------------
 # Gmail hesabından aldığın 16 haneli uygulama şifresini 'SIFRE' kısmına yaz.
-GONDEREN_MAIL = "oefe02090@gmail.com"
-ALICI_MAIL = "siparisin_gidecegi_mail@gmail.com"
-SIFRE = "Ozgurefe2006" 
+GONDEREN_MAIL = "oefe02081@gmail.com"
+ALICI_MAIL = "oefe02090@gmail.com"
+SIFRE = "faxshrksoamilxma" 
 
 def mail_gonder(siparis_detay):
     try:
