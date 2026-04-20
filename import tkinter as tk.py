@@ -7,9 +7,10 @@ from email.mime.multipart import MIMEMultipart
 
 # ------------------ MAİL AYARLARI (BURAYI DOLDUR) ------------------
 # Gmail hesabından aldığın 16 haneli uygulama şifresini 'SIFRE' kısmına yaz.
-GONDEREN_MAIL = "oefe02081@gmail.com"
-ALICI_MAIL = "oefe02090@gmail.com"
-SIFRE = "faxshrksoamilxma" 
+# Gonderen ve Alici mail adreslerini kendi mailinle değiştir.
+GONDEREN_MAIL = "seninmailin@gmail.com"
+ALICI_MAIL = "siparisin_gidecegi_mail@gmail.com"
+SIFRE = "xxxx xxxx xxxx xxxx" # Buraya o 16 haneli uygulama şifresini yapıştır!
 
 def mail_gonder(siparis_detay):
     try:
@@ -19,13 +20,15 @@ def mail_gonder(siparis_detay):
         mesaj["Subject"] = f"YENİ SİPARİŞ: {siparis_detay['Müşteri']}"
 
         icerik = f"""
-        Yeni bir tel montaj siparişi alındı:
-        
+        Yeni bir tel montaj siparişi alındı!
+        ----------------------------------
         Müşteri: {siparis_detay['Müşteri']}
+        Telefon: {siparis_detay['Telefon']}
         Metraj: {siparis_detay['Metraj']}
         Toplam Tutar: {siparis_detay['Toplam Tutar']}
         Tarih: {siparis_detay['Tarih']}
         Notlar: {siparis_detay['Notlar']}
+        ----------------------------------
         """
         mesaj.attach(MIMEText(icerik, "plain"))
 
@@ -41,9 +44,11 @@ def mail_gonder(siparis_detay):
 # ------------------ SAYFA AYARLARI ------------------
 st.set_page_config(page_title="Tel Montaj Otomasyonu", layout="wide")
 
+# Sabit Fiyatlar
 MONTAJ_SABIT = 100
 METRE_FIYATI = 70
 
+# Veri Saklama (Session State)
 if 'siparisler' not in st.session_state:
     st.session_state.siparisler = []
 
@@ -55,8 +60,13 @@ col1, col2 = st.columns([1, 1.5])
 with col1:
     st.subheader("📋 Müşteri ve İş Bilgisi")
     musteri = st.text_input("Müşteri Adı/Soyadı", placeholder="Örn: Ahmet Yılmaz")
+    
+    # MÜŞTERİ TELEFON GİRİŞİ
+    telefon = st.text_input("Telefon Numaranız", placeholder="05xx xxx xx xx")
+    
     metre = st.number_input("Kaç Metre Tel Döşenecek?", min_value=0.0, step=1.0)
     
+    # Hesaplama Mantığı
     malzeme_tutari = metre * METRE_FIYATI
     toplam_tutar = MONTAJ_SABIT + malzeme_tutari
     
@@ -70,27 +80,29 @@ with col2:
     notlar = st.text_area("Ek Notlar", placeholder="Örn: Bahçe kapısı yanından başlanacak...")
     
     if st.button("SİPARİŞİ KAYDET VE ONAYLA", type="primary", use_container_width=True):
-        if musteri and metre > 0:
+        # Müşteri, Telefon ve Metre bilgilerinin boş olmadığını kontrol ediyoruz
+        if musteri and telefon and metre > 0:
             yeni_siparis = {
                 "Müşteri": musteri,
+                "Telefon": telefon,
                 "Metraj": f"{metre} m",
                 "Toplam Tutar": f"{toplam_tutar} TL",
                 "Tarih": datetime.now().strftime('%d.%m.%Y %H:%M'),
                 "Notlar": notlar
             }
             
-            # Önce Mail Gönder
+            # 1. Maili Gönder
             mail_durumu = mail_gonder(yeni_siparis)
             
-            # Sonra Listeye Ekle
+            # 2. Listeye Ekle
             st.session_state.siparisler.append(yeni_siparis)
             
             if mail_durumu:
-                st.success(f"{musteri} için sipariş kaydedildi ve mail gönderildi!")
+                st.success(f"Başarılı! {musteri} adına sipariş kaydedildi ve mail gönderildi.")
             else:
-                st.warning(f"Sipariş kaydedildi fakat mail gönderilemedi (Şifreyi kontrol edin).")
+                st.warning("Sipariş kaydedildi fakat mail iletilemedi (Şifreyi kontrol edin).")
         else:
-            st.error("Lütfen müşteri adını ve metre bilgisini girin.")
+            st.error("Lütfen tüm alanları (Ad, Telefon, Metre) eksiksiz doldurun.")
 
 # ------------------ SİPARİŞ GEÇMİŞİ ------------------
 st.divider()
