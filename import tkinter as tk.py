@@ -7,6 +7,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 # ------------------ MAİL AYARLARI ------------------
+# Buradaki bilgileri kendi mailin ve 16 haneli uygulama şifrenle doldur
 GONDEREN_MAIL = "oefe02081@gmail.com"
 ALICI_MAIL = "oefe02090@gmail.com"
 SIFRE = "fmlftvqhyqyrkkhw" 
@@ -30,9 +31,9 @@ def mail_gonder(siparis_detay):
         
         SİPARİŞ ÖZETİ:
         Metraj: {siparis_detay['Metraj']}
-        Tel Tutarı: {siparis_detay['Tel Tutarı']}  <-- BURASI EKLENDİ
+        Tel Tutarı: {siparis_detay['Tel Tutarı']}
         Montaj Durumu: {siparis_detay['Montaj']}
-        Montaj Tutarı: {siparis_detay['Montaj Tutarı']} <-- BURASI EKLENDİ
+        Montaj Tutarı: {siparis_detay['Montaj Tutarı']}
         GENEL TOPLAM: {siparis_detay['Toplam Tutar']}
         
         Tarih: {siparis_detay['Tarih']}
@@ -49,8 +50,32 @@ def mail_gonder(siparis_detay):
     except:
         return False
 
+# ------------------ GÖRSEL AYARLAR (ARKA PLAN) ------------------
+def arka_plan_ayarla():
+    st.markdown(
+        f"""
+        <style>
+        .stApp {{
+            background: linear-gradient(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.7)), 
+                        url("https://depositphotos.com/tr/photo/razor-and-barbed-wire-fence-24938171.html");
+            background-size: cover;
+            background-attachment: fixed;
+        }}
+        /* Form alanlarını daha belirgin yapar */
+        [data-testid="stVerticalBlock"] > div {{
+            background-color: rgba(255, 255, 255, 0.85);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
 # ------------------ SAYFA AYARLARI ------------------
-st.set_page_config(page_title="Tel Otomasyon", layout="wide", page_icon="🛡️")
+st.set_page_config(page_title="Tel Otomasyon Sistemi", layout="wide", page_icon="🛡️")
+arka_plan_ayarla()
 
 METRE_FIYATI = 70
 MONTAJ_METRE_FIYATI = 100
@@ -58,64 +83,68 @@ MONTAJ_METRE_FIYATI = 100
 if 'siparisler' not in st.session_state:
     st.session_state.siparisler = []
 
-st.title("🛡️ Özgür Tel Montaj Sipariş Sistemi")
+# ------------------ ANA ARAYÜZ ------------------
+st.title("🛡️ Tel Montaj Sipariş & Hesaplama Otomasyonu")
+st.write(f"Güncel Birim Fiyatlar: Tel **{METRE_FIYATI} TL/m** | Montaj **{MONTAJ_METRE_FIYATI} TL/m**")
 
-col1, col2 = st.columns([1, 1.5])
+col1, col2 = st.columns([1, 1.2])
 
 with col1:
     st.subheader("👤 Müşteri Bilgileri")
-    musteri = st.text_input("Müşteri Adı/Soyadı")
-    telefon = st.text_input("Telefon Numarası")
+    musteri = st.text_input("Ad Soyad", placeholder="Müşterinin adı")
+    telefon = st.text_input("Telefon", placeholder="05xx xxx xx xx")
     
     st.subheader("📍 Teslimat Adresi")
-    adres = st.text_area("Tam Adresiniz (İl, İlçe, Mahalle...)", height=100)
+    adres = st.text_area("Tam Adres (İl, İlçe, Mahalle, Sokak detaylı yazınız)", height=100)
 
 with col2:
-    st.subheader("📏 Hesaplama ve Onay")
-    metre = st.number_input("Kaç Metre Tel Döşenecek?", min_value=0.0, step=1.0)
-    montaj_istiyor_mu = st.radio("Montaj hizmeti istiyor musunuz? (Metresi 100 TL)", ("Evet", "Hayır"))
+    st.subheader("📏 Hesaplama Ekranı")
+    metre = st.number_input("Kaç Metre Tel Yapılacak?", min_value=0.0, step=1.0)
+    montaj_secimi = st.radio("Montaj hizmeti dahil mi?", ("Evet", "Hayır"))
     
-    # HESAPLAMALAR
-    tel_tutari = metre * METRE_FIYATI
-    montaj_tutari = (metre * MONTAJ_METRE_FIYATI) if montaj_istiyor_mu == "Evet" else 0
-    genel_toplam = tel_tutari + montaj_tutari
+    # Hesaplamalar
+    tel_bedeli = metre * METRE_FIYATI
+    montaj_bedeli = (metre * MONTAJ_METRE_FIYATI) if montaj_secimi == "Evet" else 0
+    genel_toplam = tel_bedeli + montaj_bedeli
     
-    # EKRANDA GÖSTERİM (BURADA ARTIK TEL TUTARI GÖRÜNECEK)
+    # Bilgi Paneli
     st.divider()
-    st.write(f"📏 Tel Malzeme Tutarı ({metre}m x {METRE_FIYATI}TL): **{tel_tutari} TL**")
-    st.write(f"🛠️ Toplam Montaj Bedeli: **{montaj_tutari} TL**")
+    st.write(f"🏗️ Tel Malzeme ({metre}m): **{tel_bedeli} TL**")
+    st.write(f"🛠️ Montaj Hizmeti: **{montaj_bedeli} TL**")
     st.info(f"💰 **GENEL TOPLAM: {genel_toplam} TL**")
     
-    notlar = st.text_area("Sipariş Notu")
+    notlar = st.text_area("Sipariş Notu (Özel istekler vb.)")
     
-    if st.button("SİPARİŞİ TAMAMLA", type="primary", use_container_width=True):
+    if st.button("SİPARİŞİ ONAYLA VE GÖNDER", type="primary", use_container_width=True):
         if musteri and telefon and metre > 0 and adres:
             s_no = random.randint(10000, 99999)
-            yeni = {
-                "Sipariş No": s_no, 
-                "Müşteri": musteri, 
+            yeni_siparis = {
+                "Sipariş No": s_no,
+                "Müşteri": musteri,
                 "Telefon": telefon,
                 "Adres": adres,
                 "Metraj": f"{metre} m",
-                "Tel Tutarı": f"{tel_tutari} TL", # Veri kümesine eklendi
-                "Montaj": montaj_istiyor_mu, 
-                "Montaj Tutarı": f"{montaj_tutari} TL", # Veri kümesine eklendi
-                "Toplam Tutar": f"{genel_toplam} TL", 
+                "Tel Tutarı": f"{tel_bedeli} TL",
+                "Montaj": montaj_secimi,
+                "Montaj Tutarı": f"{montaj_bedeli} TL",
+                "Toplam Tutar": f"{genel_toplam} TL",
                 "Tarih": datetime.now().strftime('%d.%m.%Y %H:%M'),
                 "Notlar": notlar
             }
-            durum = mail_gonder(yeni)
-            st.session_state.siparisler.append(yeni)
             
-            if durum:
-                st.success(f"Sipariş Alındı! No: #{s_no}")
+            mail_sonucu = mail_gonder(yeni_siparis)
+            st.session_state.siparisler.append(yeni_siparis)
+            
+            if mail_sonucu:
+                st.success(f"İşlem Başarılı! Sipariş Numaranız: #{s_no}")
                 st.balloons()
             else:
-                st.warning(f"Kayıt başarılı (No: #{s_no}) ancak mail gönderilemedi.")
+                st.warning(f"Sipariş kaydedildi (ID: #{s_no}) fakat mail gönderilemedi. Lütfen uygulama şifresini kontrol edin.")
         else:
-            st.error("Lütfen tüm alanları doldurun!")
+            st.error("Lütfen tüm alanları (Ad, Telefon, Adres ve Metre) eksiksiz doldurun!")
 
+# ------------------ SİPARİŞ LİSTESİ ------------------
 st.divider()
 if st.session_state.siparisler:
-    st.subheader("📑 Son Siparişler")
+    st.subheader("📑 Alınan Son Siparişler")
     st.dataframe(pd.DataFrame(st.session_state.siparisler))
