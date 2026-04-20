@@ -58,7 +58,7 @@ MONTAJ_METRE_FIYATI = 100
 if 'siparisler' not in st.session_state:
     st.session_state.siparisler = []
 
-st.title("🛡️ Tel Montaj Sipariş Sistemi")
+st.title("🛡️ Özgür Tel Ve Montaj Sipariş Sistemi")
 
 col1, col2 = st.columns([1, 1.5])
 
